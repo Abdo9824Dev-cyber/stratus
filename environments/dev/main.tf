@@ -43,3 +43,36 @@ output "db_connection_name" {
   value       = module.database.instance_connection_name
   description = "The database connection string, surfaced to the root level for application integration."
 }
+
+# ==============================================================================
+# ROOT MODULE: APPLICATION TIER INTEGRATION
+# ==============================================================================
+
+locals {
+  # Dynamically construct the Artifact Registry image path for the app
+  image = "${var.region}-docker.pkg.dev/${var.project_id}/stratus/app:v2"
+}
+
+module "app" {
+  source = "../../modules/app"
+
+  project_id = var.project_id
+  region     = var.region
+  image      = local.image
+
+  # Core network bindings from the upstream network module
+  network_id = module.network.network_id
+  subnet_id  = module.network.private_subnet_id
+
+  # Database bindings from the upstream database module
+  db_host            = module.database.private_ip
+  db_name            = module.database.db_name
+  db_user            = module.database.db_user
+  password_secret_id = module.database.password_secret_id
+}
+
+# Output the live Cloud Run service endpoint to the terminal
+output "app_url" {
+  description = "The public URL endpoint of the deployed Stratus application"
+  value       = module.app.url
+}
